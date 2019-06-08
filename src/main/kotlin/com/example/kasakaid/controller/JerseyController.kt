@@ -41,6 +41,7 @@ class JerseyController {
 }
 
 data class Result(
+        // タイムゾーンは通常 LocalDateTime には表示されないがフォーマッターを用意してタイムゾーンを表示できるようにしている。
         val localDateTime: LocalDateTime? = null,
         val zonedDateTime: ZonedDateTime? = null,
         val offSetDateTime: OffsetDateTime? = null,
