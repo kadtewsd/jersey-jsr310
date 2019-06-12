@@ -16,9 +16,9 @@ class JerseyController {
     @Path("/get")
     @Consumes(value = [MediaType.APPLICATION_JSON])
     @Produces(value = [MediaType.APPLICATION_JSON])
-    fun get(): Result {
-        return Result(
-                LocalDateTime.now(),
+    fun get(): DateTimeResult {
+        return DateTimeResult(
+                LocalDateTime.of(2019, 1, 2, 13, 3, 1),
                 ZonedDateTime.now(),
                 OffsetDateTime.now(),
                 // フォーマットが UTC でありかつ時間も UTC になる
@@ -40,7 +40,7 @@ class JerseyController {
     }
 }
 
-data class Result(
+data class DateTimeResult(
         // タイムゾーンは通常 LocalDateTime には表示されないがフォーマッターを用意してタイムゾーンを表示できるようにしている。
         val localDateTime: LocalDateTime? = null,
         val zonedDateTime: ZonedDateTime? = null,

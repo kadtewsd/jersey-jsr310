@@ -15,6 +15,8 @@ repositories {
 	mavenCentral()
 }
 
+val jerseyVersion = "2.27"
+
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-jersey")
 	implementation("org.springframework.boot:spring-boot-starter-web")
@@ -22,6 +24,10 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.glassfish.jersey.media:jersey-media-json-jackson:$jerseyVersion")
+	testImplementation("org.glassfish.jersey.test-framework:jersey-test-framework-core:$jerseyVersion")
+	testImplementation("org.glassfish.jersey.test-framework.providers:jersey-test-framework-provider-grizzly2:$jerseyVersion")
+	testImplementation("org.hamcrest:hamcrest-all:1.3")
 }
 
 tasks.withType<KotlinCompile> {
