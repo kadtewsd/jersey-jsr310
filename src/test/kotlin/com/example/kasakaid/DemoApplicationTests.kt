@@ -1,38 +1,32 @@
 package com.example.kasakaid
 
+import com.example.kasakaid.config.KasakaidConfiguration
 import com.example.kasakaid.config.TestJerseyConfig
-import com.example.kasakaid.controller.DateTimeResult
+import com.example.kasakaid.controller.LocalDateTimeResult
 import com.example.kasakaid.controller.MVCController
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.glassfish.jersey.client.internal.HttpUrlConnector
+import org.hamcrest.CoreMatchers.`is`
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.MatcherAssert.assertThat
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.junit4.SpringRunner
 import org.springframework.test.web.servlet.MockMvc
-import java.io.InputStream
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-import org.springframework.test.web.servlet.MvcResult
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import javax.ws.rs.core.MediaType
 
 
 @RunWith(SpringRunner::class)
-//@SpringBootTest(classes = [Configurable::class, TestJerseyConfig::class])
-@WebMvcTest(value =[Configurable::class, TestJerseyConfig::class, MVCController::class])
+@WebMvcTest(value = [Configurable::class, TestJerseyConfig::class, MVCController::class, KasakaidConfiguration::class])
 class DemoApplicationTests {
 
     @Autowired
     lateinit var jerseyConfig: TestJerseyConfig
 
     @Autowired
-//    lateinit var objectMapper: ObjectMapper
     lateinit var myObjectMapper: ObjectMapper
 
     @Autowired
@@ -41,16 +35,23 @@ class DemoApplicationTests {
     /**
      * readEntity をするとどうしても、パースエラーになる。
      */
-    @Ignore
     @Test
     fun apiTest() {
-        jerseyConfig.get("/jersey/get").get().let {
-            //            val parsed = this.readEntity(String::class.java)
-//            val content = myObjectMapper.readValue(parsed, DateTimeResult::class.java)
-            val content = it.readEntity(DateTimeResult::class.java)
+        jerseyConfig.get("/jersey/localDateTime").get().let {
+            assertThat(it.status, `is`(200))
+            val content = it.readEntity(LocalDateTimeResult::class.java)
             val parsed = myObjectMapper.writeValueAsString(content)
-            assertThat(parsed, containsString("\"localDateTime\":\"2019-01-02T13:03:01+9:00\""))
-//            assertThat(this.status, `is`(200))
+            assertThat(parsed, containsString("2019-01-02T13:03:01.000+09:00"))
+        }
+    }
+
+    @Test
+    fun Responseでラップしない() {
+        jerseyConfig.get("/jersey/localDateTimeWithoutResponse").get().let {
+            assertThat(it.status, `is`(200))
+            val content = it.readEntity(LocalDateTimeResult::class.java)
+            val parsed = myObjectMapper.writeValueAsString(content)
+            assertThat(parsed, containsString("2019-01-02T13:03:01.000+09:00"))
         }
     }
 
@@ -69,4 +70,5 @@ class DemoApplicationTests {
 
     }
 }
+
 

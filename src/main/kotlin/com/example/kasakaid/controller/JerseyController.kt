@@ -8,10 +8,14 @@ import javax.ws.rs.GET
 import javax.ws.rs.Path
 import javax.ws.rs.Produces
 import javax.ws.rs.core.MediaType
+import javax.ws.rs.core.Response
 
 @Path("/jersey")
 class JerseyController {
 
+    /**
+     * ZonedDateTime のシリアライザーを用意していないので、テスト時のデシリアライズでパースが失敗する。
+     */
     @GET
     @Path("/get")
     @Consumes(value = [MediaType.APPLICATION_JSON])
@@ -38,7 +42,35 @@ class JerseyController {
 
         )
     }
+
+    @GET
+    @Path("/localDateTimeWithoutResponse")
+    @Consumes(value = [MediaType.APPLICATION_JSON])
+    @Produces(value = [MediaType.APPLICATION_JSON])
+    fun getLocalDateTimeWithoutResponse(): LocalDateTimeResult {
+        return LocalDateTimeResult(
+                "hoge",
+                LocalDateTime.of(2019, 1, 2, 13, 3, 1)
+        )
+    }
+
+    @GET
+    @Path("/localDateTime")
+    @Consumes(value = [MediaType.APPLICATION_JSON])
+    @Produces(value = [MediaType.APPLICATION_JSON])
+    fun getLocalDateTime(): Response {
+        return Response.ok(LocalDateTimeResult(
+                "hoge",
+                LocalDateTime.of(2019, 1, 2, 13, 3, 1)
+        )
+        ).build()
+    }
 }
+
+data class LocalDateTimeResult(
+        val word: String? = null,
+        val localDateTime: LocalDateTime? = null
+)
 
 data class DateTimeResult(
         // タイムゾーンは通常 LocalDateTime には表示されないがフォーマッターを用意してタイムゾーンを表示できるようにしている。
