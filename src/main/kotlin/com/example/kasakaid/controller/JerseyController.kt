@@ -49,7 +49,7 @@ class JerseyController {
     @Produces(value = [MediaType.APPLICATION_JSON])
     fun getLocalDateTimeWithoutResponse(): LocalDateTimeResult {
         return LocalDateTimeResult(
-                "hoge",
+                "fuga",
                 LocalDateTime.of(2019, 1, 2, 13, 3, 1)
         )
     }

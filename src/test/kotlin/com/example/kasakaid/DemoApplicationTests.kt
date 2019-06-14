@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.test.context.junit4.SpringRunner
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+import org.springframework.test.web.servlet.result.MockMvcResultHandlers
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import javax.ws.rs.core.MediaType
 
@@ -41,7 +42,9 @@ class DemoApplicationTests {
             assertThat(it.status, `is`(200))
             val content = it.readEntity(LocalDateTimeResult::class.java)
             val parsed = myObjectMapper.writeValueAsString(content)
+            println(parsed)
             assertThat(parsed, containsString("2019-01-02T13:03:01.000+09:00"))
+            assertThat(parsed, containsString("hoge"))
         }
     }
 
@@ -51,7 +54,9 @@ class DemoApplicationTests {
             assertThat(it.status, `is`(200))
             val content = it.readEntity(LocalDateTimeResult::class.java)
             val parsed = myObjectMapper.writeValueAsString(content)
+            println(parsed)
             assertThat(parsed, containsString("2019-01-02T13:03:01.000+09:00"))
+            assertThat(parsed, containsString("fuga"))
         }
     }
 
@@ -62,6 +67,7 @@ class DemoApplicationTests {
                         MockMvcRequestBuilders.get("/mvc")
 //                                .content(myObjectMapper.writeValueAsString(todoRequest))
                                 .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON))
+                .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().is2xxSuccessful).andReturn()
 //        val content = myObjectMapper.readValue(result.response.contentAsByteArray, DateTimeResult::class.java)
 //        val parsed = myObjectMapper.writeValueAsString(content)
