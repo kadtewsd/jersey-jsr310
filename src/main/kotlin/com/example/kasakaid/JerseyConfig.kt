@@ -3,10 +3,11 @@ package com.example.kasakaid
 import com.example.kasakaid.controller.JerseyController
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.JsonTokenId
 import com.fasterxml.jackson.databind.*
-import com.fasterxml.jackson.databind.node.IntNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.glassfish.jersey.server.ResourceConfig
 import org.springframework.context.annotation.Bean
@@ -19,8 +20,6 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.ws.rs.ApplicationPath
-import java.time.Instant
-import com.fasterxml.jackson.databind.node.TextNode
 
 
 @ApplicationPath("/app")
@@ -32,17 +31,6 @@ class JerseyConfig : ResourceConfig() {
     }
 }
 
-//class CustomObjectMapper(objectMapper: ObjectMapper) : ObjectMapper() {
-//
-//    init {
-//        BeanUtils.copyProperties(objectMapper, this)
-//    }
-//
-//    fun remove(value: Class<*>) {
-//        _registeredModuleTypes.remove(value)
-//    }
-//}
-
 @Configuration
 class Configurable {
     /**
@@ -50,68 +38,67 @@ class Configurable {
      */
     @Bean
     fun myObjectMapper(environment: Environment): ObjectMapper {
-        val pattern = DateTimeFormatter.ofPattern(environment["spring.jackson.date-format"])
         val m = JavaTimeModule()
-        m.addSerializer(LocalDateTime::class.java, MyLocalDateTimeSerializer(environment))
-//        m.addDeserializer(LocalDateTime::class.java, LocalDateTimeDeserializer(pattern))
-        m.addDeserializer(LocalDateTime::class.java, MyLocalDateTimeDeserializer(pattern))
-//        val om = ObjectMapper()
-//        return om.registerModules(Jdk8Module(), m, KotlinModule(), ParameterNamesModule(), JsonComponentModule())
-//                .enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-//                .enable(SerializationFeature.INDENT_OUTPUT)
+        m.addSerializer(LocalDateTime::class.java, MyLocalDateTimeSerializer(
+                environment["spring.jackson.time-zone"]!!,
+                environment["spring.jackson.date-format"]!!
+        ))
+        m.addDeserializer(LocalDateTime::class.java, MyLocalDateTimeDeserializer(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
         return Jackson2ObjectMapperBuilder.json()
-//        val v1: ObjectMapper = Jackson2ObjectMapperBuilder.json()
-//                .modules(Jdk8Module(), m, KotlinModule(), ParameterNamesModule(), JsonComponentModule())
-//                .modulesToInstall(Jdk8Module(), m, KotlinModule(), ParameterNamesModule(), JsonComponentModule())
                 .modulesToInstall(m, KotlinModule())
                 // ここを無効化しないと Unix Time でフォーマットされてしまう。
                 .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .featuresToEnable(SerializationFeature.INDENT_OUTPUT)
                 .build()
 
-//        Jackson2ObjectMapperBuilder.json()
-//                .configure(v1)
-
     }
 }
 
-class MyLocalDateTimeSerializer(private val environment: Environment) : JsonSerializer<LocalDateTime>() {
+class MyLocalDateTimeSerializer(
+        private val timeZone: String,
+        private val format: String
+) : JsonSerializer<LocalDateTime>() {
 
     override fun serialize(value: LocalDateTime?, gen: JsonGenerator?, provider: SerializerProvider?) {
         val v = value ?: run {
             gen!!.writeString("")
             return
         }
-        val a = v.atZone(ZoneId.of(this.environment["spring.jackson.time-zone"]!!))
-        gen!!.writeString(a.format(DateTimeFormatter.ofPattern(environment["spring.jackson.date-format"])))
+        val a = v.atZone(ZoneId.of(timeZone))
+        gen!!.writeString(a.format(DateTimeFormatter.ofPattern(format)))
     }
 
 }
 
 /**
- * なにをどうやっても、LocalDateTime の各メンバーがバラバラになって取得することしかできない。
+ * テスト時の readEntity では、なにをどうやっても、LocalDateTime の各メンバーがバラバラになって取得することしかできない。
+ * "localDateTime":{"dayOfYear":2,"dayOfWeek":"WEDNESDAY","month":"JANUARY","dayOfMonth":2,"year":2019,"monthValue":1,"hour":13,"minute":3,"second":1,"nano":0,"chronology":{"id":"ISO","calendarType":"iso8601"}}
+ * そのため、tokenId の開始が ID_STRING にならず、START_OBJECT になり、ハンドリングできない構造であると判断されて、規定のでシリアライザーでは例外が吐かれてしまう。
  * しかたがないので、これでデシリアライズする。
- * ただし、REST でシリアライズするときは問題なくシリアライズできていた。
+ * ただし、REST でリクエストがくると、入力内容 (2019-01-01T12:00:00.000) がそのままサーバー側に到達するので、ID_STRING でデシリアライズできていた。
  */
 class MyLocalDateTimeDeserializer(
-        private val pattern: DateTimeFormatter
+        pattern: DateTimeFormatter
 //) : StdDeserializer<LocalDateTime>(LocalDateTime::class.java) {
-) : JsonDeserializer<LocalDateTime>() {
+//): JsonDeserializer<LocalDateTime>() {
+) : LocalDateTimeDeserializer(pattern) {
     override fun deserialize(p: JsonParser?, ctxt: DeserializationContext?): LocalDateTime {
-//        val node = p!!.codec?.readTree(p)
-//        return p!!.codec.readValue(p, LocalDateTime::class.java)
-        val codec = p!!.codec
-        val node = codec.readTree(p) as ObjectNode
-//        val dateString = node.textValue()
-//        val instant = Instant.parse(node.asText())
-//        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
-        return LocalDateTime.of(
-                node["year"].asInt(),
-                node["monthValue"].asInt(),
-                node["dayOfMonth"].asInt(),
-                node["hour"].asInt(),
-                node["minute"].asInt(),
-                node["second"].asInt()
-        )
+
+        return if (
+                p!!.hasTokenId(JsonTokenId.ID_STRING) ||
+                p.isExpectedStartArrayToken) {
+            super.deserialize(p, ctxt)
+        } else {
+//        return super.deserialize(p, ctxt)
+            val node = p.codec.readTree(p) as ObjectNode
+            LocalDateTime.of(
+                    node["year"].asInt(),
+                    node["monthValue"].asInt(),
+                    node["dayOfMonth"].asInt(),
+                    node["hour"].asInt(),
+                    node["minute"].asInt(),
+                    node["second"].asInt()
+            )
+        }
     }
 }

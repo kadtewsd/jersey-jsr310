@@ -1,15 +1,8 @@
 package com.example.kasakaid.config
 
-import com.example.kasakaid.MyLocalDateTimeSerializer
 import com.example.kasakaid.controller.JerseyController
-import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import org.glassfish.jersey.client.ClientConfig
 import org.glassfish.jersey.client.JerseyClientBuilder
-import org.glassfish.jersey.internal.inject.Custom
-import org.glassfish.jersey.jackson.JacksonFeature
 import org.glassfish.jersey.jackson.internal.jackson.jaxrs.cfg.JaxRSFeature
 import org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJaxbJsonProvider
 import org.glassfish.jersey.server.ResourceConfig
@@ -19,19 +12,14 @@ import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.stereotype.Component
 import java.io.*
 import java.lang.reflect.Type
-import java.text.SimpleDateFormat
-import java.time.LocalDateTime
 import javax.annotation.Priority
 import javax.ws.rs.Consumes
 import javax.ws.rs.Produces
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.client.Client
-import javax.ws.rs.client.ClientBuilder
 import javax.ws.rs.client.Invocation
 import javax.ws.rs.client.WebTarget
 import javax.ws.rs.core.MediaType
@@ -71,6 +59,7 @@ class TestJerseyConfig(
             override fun configure(): ResourceConfig {
                 return ResourceConfig(JerseyController::class.java)
                         // ここにあるコードを書いても response のシリアライズに影響はない
+                        // どうもここに書かれている register は serverSide のリソースを登録する意味のようである。
 //                        .register(JacksonFeature::class.java)
 //                        .register(myObjectMapper, ObjectMapper::class.java)
 //                        .register(jacksonJaxbJsonProvider, JacksonJaxbJsonProvider::class.java)
@@ -84,7 +73,10 @@ class TestJerseyConfig(
             }
 
             /**
-             * クライアント側でデシリアライズするのでシリアライザーを登録
+             * クライアント側で response.readEntity をするときに例外が発生することを回避する。
+             * response.readEntity で使用されるオブジェクトマッパーは、規定のオブジェクトマッパーになる。
+             * response.readEntity で LocalDateTime をデシリアライズしようとすると、形式が構造体の見慣れない形になっているのでデシリアライズに失敗する
+             * この失敗を回避するため、LocalDateTime でのカスタムのでシリアライザーを使用するオブジェクトマッパーを登録する。
              */
             override fun getClient(): Client {
 //                return ClientBuilder.newClient()
@@ -99,16 +91,9 @@ class TestJerseyConfig(
                         .client
             }
 
-            override fun configureClient(config: ClientConfig?) {
-//                config!!.register(JacksonConfigurator::class.java)
-//                config!!.register(JacksonConfigurator(myObjectMapper))
-                config!!.register(JacksonConfigurator())
-//                super.configureClient(config)
-            }
-
         }
         println("initialize...")
-        // 起動しないと NullPointerExceptin
+        // 起動しないと NullPointerException
         this.jerseyTest.setUp()
 
     }
@@ -129,26 +114,16 @@ class TestJerseyConfig(
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 class JacksonConfigurator(
-//        private val myObjectMapper: ObjectMapper
+        private val myObjectMapper: ObjectMapper
 ) : ContextResolver<ObjectMapper> {
 
-    init {
-//        myObjectMapper.dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
-    }
-
     override fun getContext(arg0: Class<*>): ObjectMapper {
-//        return myObjectMapper
-        val m = JavaTimeModule()
-        return Jackson2ObjectMapperBuilder.json()
-                .modules(m)
-                .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .build()
+        return  this.myObjectMapper
     }
 }
 
 @Provider
 @Priority(0)
-@Custom
 class MixInJacksonJsonProvider(objectMapper: ObjectMapper) : JacksonJaxbJsonProvider() {
     init {
         setMapper(objectMapper)

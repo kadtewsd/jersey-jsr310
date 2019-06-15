@@ -3,10 +3,7 @@ package com.example.kasakaid.controller
 import com.fasterxml.jackson.annotation.JsonFormat
 import java.io.Serializable
 import java.time.*
-import javax.ws.rs.Consumes
-import javax.ws.rs.GET
-import javax.ws.rs.Path
-import javax.ws.rs.Produces
+import javax.ws.rs.*
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 
@@ -63,6 +60,20 @@ class JerseyController {
                 "hoge",
                 LocalDateTime.of(2019, 1, 2, 13, 3, 1)
         )
+        ).build()
+    }
+
+    @POST
+    @Path("/post")
+    @Consumes(value = [MediaType.APPLICATION_JSON])
+    @Produces(value = [MediaType.APPLICATION_JSON])
+    fun register(result: LocalDateTimeResult): Response {
+        println(result.toString())
+        return Response.ok(
+                LocalDateTimeResult(
+                        word = "parsed",
+                        localDateTime = result.localDateTime
+                )
         ).build()
     }
 }
