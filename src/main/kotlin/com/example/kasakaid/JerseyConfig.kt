@@ -20,6 +20,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.ws.rs.ApplicationPath
+import my.controller.MyJerseyResource
 
 
 @ApplicationPath("/app")
@@ -28,6 +29,7 @@ class JerseyConfig : ResourceConfig() {
 
     init {
         this.register(JerseyController::class.java)
+        this.register(MyJerseyResource::class.java)
     }
 }
 

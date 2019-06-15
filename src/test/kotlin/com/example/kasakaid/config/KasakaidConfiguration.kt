@@ -6,13 +6,20 @@ import org.glassfish.jersey.client.JerseyClientBuilder
 import org.glassfish.jersey.jackson.internal.jackson.jaxrs.cfg.JaxRSFeature
 import org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJaxbJsonProvider
 import org.glassfish.jersey.server.ResourceConfig
+import org.glassfish.jersey.servlet.ServletContainer
 import org.glassfish.jersey.test.JerseyTest
+import org.glassfish.jersey.test.ServletDeploymentContext
+import org.glassfish.jersey.test.grizzly.GrizzlyWebTestContainerFactory
+import org.glassfish.jersey.test.spi.TestContainerFactory
 import org.junit.rules.ExternalResource
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Component
+import org.springframework.web.filter.FormContentFilter
+import org.springframework.web.filter.HiddenHttpMethodFilter
+import org.springframework.web.filter.RequestContextFilter
 import java.io.*
 import java.lang.reflect.Type
 import javax.annotation.Priority
@@ -63,14 +70,38 @@ class TestJerseyConfig(
 //                        .register(JacksonFeature::class.java)
 //                        .register(myObjectMapper, ObjectMapper::class.java)
 //                        .register(jacksonJaxbJsonProvider, JacksonJaxbJsonProvider::class.java)
-//                        .register(JacksonConfigurator(myObjectMapper), JacksonConfigurator::class.java)
+                        .register(JacksonConfigurator(myObjectMapper), JacksonConfigurator::class.java)
 //                        .register(MixInJacksonJsonProvider(myObjectMapper), JacksonJaxbJsonProvider::class.java)
 //                        .register(ObjectMapperProvider<T>(myObjectMapper), ObjectMapperProvider<T>(objectMapper = myObjectMapper)::class.java)
 //                        .register(JacksonConfigurator::class.java)
 //                        .register(MixInJacksonJsonProvider::class.java)
 //                        .register(ObjectMapperProvider<DateTimeResult>(objectMapper = myObjectMapper)::class.java)
+//                        .register(OncePerRequestFilter::class.java)
                         .property("contextConfig", applicationContext)
             }
+
+            /**
+             * この設定を使うことでフィルターを利用したテストができるようになる。
+             */
+            override fun configureDeployment(): ServletDeploymentContext {
+                return ServletDeploymentContext
+                        // JAX-RS コンポーネントは `ServletContainer` に包んでやる。
+                        .forServlet(ServletContainer(configure()))
+                        // Servlet フィルタの追加も可能。
+//                        .addFilter(OncePerRequestFilter::class.java, OncePerRequestFilter::class.java.simpleName)
+                        .addFilter(HiddenHttpMethodFilter::class.java, HiddenHttpMethodFilter::class.java.simpleName)
+                        .addFilter(FormContentFilter::class.java, FormContentFilter::class.java.simpleName)
+                        .addFilter(RequestContextFilter::class.java, RequestContextFilter::class.java.simpleName)
+                .build()
+            }
+
+            /**
+             * フィルターはサーブレットの機能なので、このコンテナを使わないと動作しない。
+             */
+            override fun getTestContainerFactory(): TestContainerFactory {
+                return GrizzlyWebTestContainerFactory()
+            }
+
 
             /**
              * クライアント側で response.readEntity をするときに例外が発生することを回避する。
@@ -84,9 +115,9 @@ class TestJerseyConfig(
                         .configuration
 //                        .register(myObjectMapper)
                         // 下記のうちいずれかで response 時に該当の objectMapper が使えるようになる。
-//                        .register(JacksonConfigurator(myObjectMapper))
+                        .register(JacksonConfigurator(myObjectMapper))
 //                        .register(JacksonConfigurator())
-                        .register(MixInJacksonJsonProvider(objectMapper = myObjectMapper))
+//                        .register(MixInJacksonJsonProvider(objectMapper = myObjectMapper))
 //                        .register(ObjectMapperProvider<Serializable>(myObjectMapper))
                         .client
             }
@@ -118,7 +149,7 @@ class JacksonConfigurator(
 ) : ContextResolver<ObjectMapper> {
 
     override fun getContext(arg0: Class<*>): ObjectMapper {
-        return  this.myObjectMapper
+        return this.myObjectMapper
     }
 }
 
